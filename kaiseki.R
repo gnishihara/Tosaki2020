@@ -90,9 +90,12 @@ sesoko = sesoko %>%
 
 
 # 調査期間のフィルター
-sesoko = sesoko %>% filter(between(datetime, left = start_time, right = end_time))
+sesoko = sesoko %>% filter(between(datetime, 
+                                   left = start_time, 
+                                   right = end_time))
 sesoko
 
+# LiCor
 calib = read_tsv(file = "Data/sesoko_calibration_191002.txt",
                  col_names = c("n", "datetime", "value"))
 
@@ -101,6 +104,60 @@ calib = calib %>%
   mutate(ppfd = as.numeric(value)) %>% 
   select(datetime, ppfd)
 
-# calib の単位は： mol/m2/
+#　ここまでは calib の単位は： mol/m2/5 minutes
+
+# floor_* : 切り捨て
+# ceiling_* : 切り上げ
+
+# ここからは 10分間の積算光量子量 (mol/m2/10 minutes.)
+calib = calib %>% 
+  mutate(datetime = ceiling_date(datetime, "10 min")) %>% 
+  group_by(datetime) %>% 
+  summarise(ppfd = sum(ppfd))
+
+sesoko = sesoko %>% 
+  select(-ppfd) %>% 
+  full_join(calib, by = "datetime")
+
+# データの確認
+ggplot(sesoko) +
+  geom_point(aes(x = raw, y = ppfd)) +
+  geom_smooth(
+    aes(x = raw, y = ppfd),
+    method = "lm",
+    formula = y ~ x -1)
+
+
+# calibration
+
+calib_model = lm(ppfd ~ raw - 1 , data = sesoko)
+
+data = data %>% 
+  mutate(ppfd = predict(calib_model, newdata = .))
+
+data = data %>% 
+  mutate(ppfd = 1000000* ppfd / (10 * 60))
+
+ggplot(data) + 
+  geom_point(aes(x = datetime,
+                 y = ppfd))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
