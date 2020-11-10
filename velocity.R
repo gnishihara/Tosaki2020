@@ -101,15 +101,27 @@ data %>%
                    ~mean(.x, na.rm = T)))
 
 
+se = function(x, na.rm = TRUE) {
+  N = length(x) - sum(is.na(x))
+  
+  sd(x, na.rm = na.rm ) / sqrt(N - 1)
+}
+
+
 data_summary = data %>% 
   group_by(date) %>% 
   summarise(across(c(velocity, temperature,
                      ew, ns),
                    list(mean = ~mean(.x, na.rm=T),
+                        min = ~min(.x, na.rm=T),
                         max = ~max(.x, na.rm=T),
+                        u80 = ~ quantile(.x, probs = c(0.80), na.rm=T),
+                        u90 = ~ quantile(.x, probs = c(0.90), na.rm=T),
+                        u95 = ~ quantile(.x, probs = c(0.95), na.rm=T),
+                        u99 = ~ quantile(.x, probs = c(0.99), na.rm=T),
+                        se = ~se(.x, na.rm=T),
                         sd = ~sd(.x, na.rm=T))))
 data_summary %>%   tail()
-
 
 ggplot(data_summary) +
   geom_col(aes( x = date,
@@ -118,6 +130,102 @@ ggplot(data_summary) +
                     ymin =velocity_mean,
                     ymax = velocity_mean + velocity_sd),
                 width = 0)
+
+xlabel = "Date"
+ylabel = expression("Velocity" ~ (m ~ s^{-1}))
+ggplot(data_summary) + 
+  geom_line(aes(x= date,  y = velocity_min, color = "最小")) +
+  geom_line(aes(x = date, y = velocity_mean, color = "平均")) +
+  geom_line(aes(x = date, y = velocity_u80, color = "80%")) +
+  geom_line(aes(x = date, y = velocity_u90, color = "90%")) +
+  geom_line(aes(x = date, y = velocity_u95, color = "95%")) +
+  geom_line(aes(x = date, y = velocity_u99, color = "99%")) +
+  # geom_line(aes(x = date, y = velocity_max, color = "最大")) +
+  scale_y_continuous(ylabel) +
+  scale_x_datetime(xlabel,
+                    date_labels = "%m / %d") +
+  theme(legend.title = element_blank(),
+        legend.position = c(1,1),
+        legend.justification = c(1,1))
+
+
+
+# 一日ごとの図と見方
+ 
+data_plots = data %>% 
+  group_nest(date) %>% 
+  mutate(plots = map(data, function(df) {
+    df = df %>% 
+      mutate(datetime = floor_date(datetime, "minute"))
+    ggplot(df) + 
+      geom_point(aes(x = datetime,　y = velocity,　color = "データ"),
+                 alpha = 0.5)+
+      stat_summary(aes(x = datetime, y = velocity,　color = "平均"),
+                   size = 1,　fun = mean, geom = "line")
+  }))
+
+data_plots %>% slice(1) %>% pull(plots)
+
+library(ggpubr)
+# ggarrange(plotlist = data_plots %>% pull(plots))
+
+data_plots %>% 
+  mutate(plotfile = str_glue("Velocity_{date}.png")) %>% 
+  mutate(out = walk2(plots, plotfile, function(p, f) {
+    ggsave(filename = f, plot = p,
+           width = 100, height = 100,
+           units = "mm")
+  }))
+
+
+
+# 6　時間ごと ---
+# 
+# data_summary_6 = data %>% 
+#   mutate(date = floor_date(datetime, "6 hour")) %>% 
+#   group_by(date) %>% 
+#   summarise(across(c(velocity, temperature,
+#                      ew, ns),
+#                    list(mean = ~mean(.x, na.rm=T),
+#                         min = ~min(.x, na.rm=T),
+#                         max = ~max(.x, na.rm=T),
+#                         u80 = ~ quantile(.x, probs = c(0.80), na.rm=T),
+#                         u90 = ~ quantile(.x, probs = c(0.90), na.rm=T),
+#                         u95 = ~ quantile(.x, probs = c(0.95), na.rm=T),
+#                         u99 = ~ quantile(.x, probs = c(0.99), na.rm=T),
+#                         se = ~se(.x, na.rm=T),
+#                         sd = ~sd(.x, na.rm=T))))
+# 
+# 
+# ggplot(data_summary_6) +
+#   geom_col(aes( x = date,
+#                 y = velocity_mean)) +
+#   geom_errorbar(aes(x = date,
+#                     ymin =velocity_mean,
+#                     ymax = velocity_mean + velocity_sd),
+#                 width = 0)
+# 
+# xlabel = "Date"
+# ylabel = expression("Velocity" ~ (m ~ s^{-1}))
+# ggplot(data_summary_6) + 
+#   geom_line(aes(x= date,  y = velocity_min, color = "最小")) +
+#   geom_line(aes(x = date, y = velocity_mean, color = "平均")) +
+#   geom_line(aes(x = date, y = velocity_u80, color = "80%")) +
+#   geom_line(aes(x = date, y = velocity_u90, color = "90%")) +
+#   geom_line(aes(x = date, y = velocity_u95, color = "95%")) +
+#   geom_line(aes(x = date, y = velocity_u99, color = "99%")) +
+#   scale_y_continuous(ylabel) +
+#   scale_x_datetime(xlabel,
+#                    date_labels = "%m / %d") +
+#   theme(legend.title = element_blank(),
+#         legend.position = c(1,1),
+#         legend.justification = c(1,1))
+
+
+
+
+
+
 
 
 
