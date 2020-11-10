@@ -47,7 +47,8 @@ data = data %>%
   
 
 # 調査期間のフィルター
-data = data %>% filter(between(datetime, left = start_time, right = end_time))
+data = data %>% 
+  filter(between(datetime, left = start_time, right = end_time))
 
 data
 
@@ -164,7 +165,7 @@ end_time   = ymd_hms("2019-11-06 08:15:00")
 data2 = data %>% 
   filter(between(datetime,
                  ceiling_date(start_time, "day"),
-                 floor_date(end_time, "day")))
+                 floor_date(end_time, "day") - minutes(1)))
 data2 = data2 %>% 
   mutate(date = floor_date(datetime, "day")) %>% 
   group_by(date) %>% 
