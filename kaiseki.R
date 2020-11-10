@@ -47,7 +47,60 @@ data = data %>%
   unnest(data)
   
 
+# 調査期間のフィルター
+data = data %>% filter(between(datetime, left = start_time, right = end_time))
+
+data
+
+# 作図 
+
+ggplot(data) +
+  geom_point(aes(x = datetime, y = ppfd))
 
 
 
-data %>% filter(between(datetime, left = start_time, right = end_time))
+################### 瀬底データ 
+
+sesoko = tibble(fnames = dir("Data", pattern = "[Cc][Ss][Vv]", full.names = TRUE))
+
+sesoko = sesoko %>% 
+  filter(str_detect(fnames, pattern = "Light_45_sesoko"))
+
+
+sesoko = sesoko %>% 
+  mutate(data = map(fnames, read_csv, 
+                    skip = 9,
+                    col_names = c("n", "date", "time", "raw", "ppfd")))
+
+start_time = ymd_hms("2019-10-02 11:35:00")
+end_time   = ymd_hms("2019-10-02 18:20:00")
+
+sesoko = sesoko %>% 
+  mutate(start_time,
+         end_time)
+
+# たたんだままの　data の処理　
+sesoko = sesoko %>% 
+  mutate(data = map(data, function(df) {
+    df %>% 
+      mutate(datetime = str_glue("{date} {time}")) %>% 
+      mutate(datetime = parse_date_time(datetime, "dmY T*!"))
+  })) %>% 
+  unnest(data)
+
+
+# 調査期間のフィルター
+sesoko = sesoko %>% filter(between(datetime, left = start_time, right = end_time))
+sesoko
+
+calib = read_tsv(file = "Data/sesoko_calibration_191002.txt",
+                 col_names = c("n", "datetime", "value"))
+
+calib = calib %>% 
+  filter(between(datetime, start_time, end_time)) %>% 
+  mutate(ppfd = as.numeric(value)) %>% 
+  select(datetime, ppfd)
+
+# calib の単位は： mol/m2/
+
+
