@@ -144,6 +144,46 @@ ggplot(data) +
 
 
 
+## 一日間のデータ
+# 平均よりも総和
+
+ggplot(filter(data, datetime < ymd_hms("2019-10-07 00:00:00"))) + 
+  geom_point(aes(x = datetime, y = ppfd))
+
+
+data %>% 
+  mutate(date = floor_date(datetime, "day")) %>% 
+  group_by(date) %>% 
+  summarise(n = length(ppfd),
+            ppfd = mean(ppfd))
+  
+
+start_time = ymd_hms("2019-10-03 17:00:00")
+end_time   = ymd_hms("2019-11-06 08:15:00")
+
+data2 = data %>% 
+  filter(between(datetime,
+                 ceiling_date(start_time, "day"),
+                 floor_date(end_time, "day")))
+data2 = data2 %>% 
+  mutate(date = floor_date(datetime, "day")) %>% 
+  group_by(date) %>% 
+  summarise(n = length(ppfd),
+            ppfd = sum(ppfd)) %>% 
+  mutate(ppfd = ppfd/1000000 * 60*10)
+
+ylabel = expression("PPFD" ~ (mol~m^{-2}~d^{-1}))
+ggplot(data2) +
+  geom_point(aes(x = date, y = ppfd)) +
+  scale_y_continuous(ylabel)
+
+
+
+
+
+
+
+
 
 
 
