@@ -27,8 +27,7 @@ start_time = ymd_hms("2019-10-03 17:00:00")
 end_time   = ymd_hms("2019-11-06 08:15:00")
 
 data = data %>% 
-  mutate(start_time,
-         end_time)
+  mutate(start_time, end_time)
 
 
 # ひらいてからの処理
@@ -39,7 +38,7 @@ data %>%
 
 # たたんだままの　data の処理　
 data = data %>% 
-  mutate(data = map(data, function(df) {
+  mutate(data = map(data, function(df) {    
     df %>% 
       mutate(datetime = str_glue("{date} {time}")) %>% 
       mutate(datetime = parse_date_time(datetime, "dmY T*!"))
@@ -115,9 +114,9 @@ calib = calib %>%
   group_by(datetime) %>% 
   summarise(ppfd = sum(ppfd))
 
-sesoko = sesoko %>% 
-  select(-ppfd) %>% 
-  full_join(calib, by = "datetime")
+sesoko = sesoko %>% select(-ppfd)
+
+sesoko = full_join(sesoko, calib, by = "datetime")
 
 # データの確認
 ggplot(sesoko) +
@@ -128,13 +127,14 @@ ggplot(sesoko) +
     formula = y ~ x -1)
 
 
-# calibration
+# calibration model
 
 calib_model = lm(ppfd ~ raw - 1 , data = sesoko)
 
 data = data %>% 
   mutate(ppfd = predict(calib_model, newdata = .))
 
+# umol / m2 / sec に変換する
 data = data %>% 
   mutate(ppfd = 1000000* ppfd / (10 * 60))
 
